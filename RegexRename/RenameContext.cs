@@ -3,7 +3,6 @@ namespace RegexRename
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Text.RegularExpressions;
 
     using Mindplay.Extensions;
@@ -11,34 +10,18 @@ namespace RegexRename
     public class RenameContext
     {
         private Regex _regex;
+        private string _destRegex;
         private Dictionary<string, Type> _typeMap = new Dictionary<string, Type>();
-        public RenameSettings Settings { get; }
-        public string BaseFolder { get; set; }
 
-        public RenameContext(RenameSettings settings)
+        public static RenameContext Create(string sourceRegex, string destRegex, IDictionary<string, string> variableTypes)
         {
-            Settings = settings;
-        }
+            var result = new RenameContext();
 
-        public void Initialise()
-        {
-            _regex = new Regex(Settings.SourceRegex);
+            result._regex = new Regex(sourceRegex);
+            result._destRegex = destRegex;
+            result.InitialiseTypeMap(variableTypes);
 
-            var names = _regex.GetGroupNames();
-            foreach (var name in names)
-            {
-                var varType = typeof(System.String);
-                if (Settings.VariableTypes.ContainsKey(name))
-                {
-                    varType = Type.GetType(Settings.VariableTypes[name], true);
-                }
-                _typeMap.Add(name, varType);
-            }
-            if (String.IsNullOrEmpty(BaseFolder))
-            {
-                BaseFolder = Directory.GetCurrentDirectory();
-            }
-            BaseFolder = Path.GetFullPath(BaseFolder);
+            return result;
         }
 
         public string TransformFileName(string fileName)
@@ -53,13 +36,27 @@ namespace RegexRename
                 {
                     var values = GetValues(match);
 
-                    result = Settings.DestRegex.Subtitute(values);
+                    result = _destRegex.Subtitute(values);
                 }
             }
             return result;
         }
 
-        public IReadOnlyDictionary<String, Object> GetValues(Match match)
+        private void InitialiseTypeMap(IDictionary<string, string> variableTypes)
+        {
+            var names = _regex.GetGroupNames();
+            foreach (var name in names)
+            {
+                var varType = typeof(System.String);
+                if (variableTypes != null && variableTypes.ContainsKey(name))
+                {
+                    varType = Type.GetType(variableTypes[name], true);
+                }
+                _typeMap.Add(name, varType);
+            }
+        }
+
+        private IReadOnlyDictionary<String, Object> GetValues(Match match)
         {
             var result = new Dictionary<string, object>();
             for (int i = 0; i < match.Groups.Count; i++)

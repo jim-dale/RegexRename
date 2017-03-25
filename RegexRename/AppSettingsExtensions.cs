@@ -7,12 +7,10 @@ namespace RegexRename
 
     public static class AppSettingsExtensions
     {
-        public const string DefaultFileName = "RegexRename.AppSettings.json";
-
         public static AppSettings TryDefaultJsonFile(this AppSettings appSettings)
         {
             var assemblyPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            string path = Path.Combine(assemblyPath, DefaultFileName);
+            string path = Path.Combine(assemblyPath, Constants.DefaultSettingsFileName);
 
             return TryJsonFile(appSettings, path);
         }
@@ -29,8 +27,13 @@ namespace RegexRename
 
         public static void SaveToFile(this AppSettings appSettings, string path)
         {
-            string json = JsonConvert.SerializeObject(appSettings, Formatting.Indented);
+            string json = appSettings.GetJson();
             File.WriteAllText(path, json);
+        }
+
+        public static string GetJson(this AppSettings appSettings)
+        {
+            return JsonConvert.SerializeObject(appSettings, Formatting.Indented);
         }
     }
 }

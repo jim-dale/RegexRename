@@ -14,9 +14,13 @@ namespace RegexRename
             {
                 CommandLine.ShowHelp();
             }
+            else if (context.ShowExampleSettings)
+            {
+                ShowExampleSettings();
+            }
             else
             {
-                context.Configure();
+                context.Initialise();
 
                 if (context.ListLongProfiles || context.ListShortProfiles)
                 {
@@ -24,10 +28,10 @@ namespace RegexRename
                 }
                 else
                 {
-                    if (context.HasError == false)
+                    if (context.IsValid)
                     {
-                        var renameContext = context.CreateInitialisedRenameContext();
-                        var fileSource = context.CreateInitialisedFileSourceForRenameContext(renameContext);
+                        var renameContext = context.CreateRenameContext();
+                        var fileSource = context.CreateFileSource();
 
                         foreach (var file in fileSource.Files)
                         {
@@ -57,6 +61,12 @@ namespace RegexRename
             return context.Result;
         }
 
+        private static void ShowExampleSettings()
+        {
+            string json = ExampleAppSettings.Example.GetJson();
+            Console.WriteLine(json);
+        }
+
         private static void ShowErrors(IList<string> errorList)
         {
             foreach (var error in errorList)
@@ -69,7 +79,7 @@ namespace RegexRename
         {
             foreach (var profile in context.Settings.Profiles)
             {
-                string output = (context.ListLongProfiles) ? profile.Value.ToLongString() : profile.Value.ToShortString();
+                string output = (context.ListLongProfiles) ? profile.ToLongString() : profile.ToShortString();
 
                 Console.WriteLine(output);
             }
