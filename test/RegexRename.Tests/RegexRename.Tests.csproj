@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\RegexRename\RegexRename.csproj" />
+    <ProjectReference Include="..\..\src\RegexRename\RegexRename.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,11 +27,6 @@
     <None Include="test-data/**/*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Support\" />
-    <Folder Include="test-data\subfolder\" />
   </ItemGroup>
 
 </Project>
