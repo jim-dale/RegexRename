@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "RegexRename": {
-      "commandName": "Project",
-      "commandLineArgs": "-p NatWestCreditCard -f \"D:\\Documents\\Finance\\NatWest\\Credit Card\\Statements\" -s **/*.pdf -w"
-    }
-  }
-}
