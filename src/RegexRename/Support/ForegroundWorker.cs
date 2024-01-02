@@ -16,18 +16,18 @@ public class ForegroundWorker : IDisposable
     /// </summary>
     public ForegroundWorker()
     {
-        registrations = new[]
-        {
-            PosixSignalRegistration.Create(PosixSignal.SIGINT, HandlePosixSignal),
-            PosixSignalRegistration.Create(PosixSignal.SIGTERM, HandlePosixSignal),
-        };
+        this.registrations =
+        [
+            PosixSignalRegistration.Create(PosixSignal.SIGINT, this.HandlePosixSignal),
+            PosixSignalRegistration.Create(PosixSignal.SIGTERM, this.HandlePosixSignal),
+        ];
     }
 
     /// <summary>
     /// Gets the cancellation token that can be used by derived classes to detect application shutdown.
     /// </summary>
     /// <value>The cancellation token that can be used by derived classes to detect application shutdown.</value>
-    protected CancellationToken StoppingToken => cancellationTokenSource.Token;
+    protected CancellationToken StoppingToken => this.cancellationTokenSource.Token;
 
     public virtual Task<int> ExecuteAsync()
     {
@@ -37,7 +37,7 @@ public class ForegroundWorker : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        Dispose(true);
+        this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
@@ -47,22 +47,22 @@ public class ForegroundWorker : IDisposable
     /// <param name="disposing">Indicates whether this was called by a Dispose method.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed)
+        if (this.disposed)
         {
             return;
         }
 
         if (disposing)
         {
-            foreach (var registration in registrations)
+            foreach (var registration in this.registrations)
             {
                 registration.Dispose();
             }
 
-            cancellationTokenSource.Dispose();
+            this.cancellationTokenSource.Dispose();
         }
 
-        disposed = true;
+        this.disposed = true;
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public class ForegroundWorker : IDisposable
     /// <param name="context">The <see cref="PosixSignalContext"/>.</param>
     private void HandlePosixSignal(PosixSignalContext context)
     {
-        cancellationTokenSource.Cancel();
+        this.cancellationTokenSource.Cancel();
         context.Cancel = true;
     }
 }

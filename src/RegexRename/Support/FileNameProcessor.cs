@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 using Mindplay.Extensions;
@@ -10,29 +11,29 @@ public class FileNameProcessor
 {
     private readonly Regex inputPattern;
     private readonly string outputPattern;
-    private readonly Dictionary<string, Type> typeMap = new();
+    private readonly Dictionary<string, Type> typeMap = [];
 
-    public FileNameProcessor(string inputPattern, string outputPattern, IDictionary<string, string> variableTypes)
+    public FileNameProcessor(string inputPattern, string outputPattern, IDictionary<string, string> variables)
     {
         this.inputPattern = new Regex(inputPattern);
         this.outputPattern = outputPattern;
 
-        InitialiseTypeMap(variableTypes);
+        this.InitialiseTypeMap(variables);
     }
 
     public string? TransformFileName(string fileName)
     {
         string? result = default;
 
-        var matches = inputPattern.Matches(fileName);
+        var matches = this.inputPattern.Matches(fileName);
         if (matches.Count == 1)
         {
             var match = matches[0];
             if (match.Success)
             {
-                var values = GetValues(match);
+                var values = this.GetValues(match);
 
-                result = outputPattern.Subtitute(values);
+                result = this.outputPattern.Subtitute(values);
             }
         }
 
@@ -41,21 +42,22 @@ public class FileNameProcessor
 
     private void InitialiseTypeMap(IDictionary<string, string> variableTypes)
     {
-        var names = inputPattern.GetGroupNames();
+        var names = this.inputPattern.GetGroupNames();
         foreach (var name in names)
         {
             var varType = variableTypes.TryGetValue(name, out string? value) ? Type.GetType(value, true) : typeof(string);
-            typeMap.Add(name, varType!);
+            this.typeMap.Add(name, varType!);
         }
     }
 
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Prefer read-only.")]
     private IReadOnlyDictionary<string, object> GetValues(Match match)
     {
         var result = new Dictionary<string, object>();
         for (int i = 0; i < match.Groups.Count; i++)
         {
-            string name = inputPattern.GroupNameFromNumber(i);
-            object value = Convert.ChangeType(match.Groups[i].Value, typeMap[name]);
+            string name = this.inputPattern.GroupNameFromNumber(i);
+            object value = Convert.ChangeType(match.Groups[i].Value, this.typeMap[name]);
 
             result.Add(name, value);
         }

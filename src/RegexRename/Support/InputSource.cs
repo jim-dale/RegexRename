@@ -10,8 +10,8 @@ public class InputSource
 
     public InputSource(string folder, string searchPatterns)
     {
-        ArgumentException.ThrowIfNullOrEmpty(folder, nameof(folder));
-        ArgumentException.ThrowIfNullOrEmpty(searchPatterns, nameof(searchPatterns));
+        ArgumentException.ThrowIfNullOrEmpty(folder);
+        ArgumentException.ThrowIfNullOrEmpty(searchPatterns);
 
         this.folder = folder;
         this.searchPatterns = searchPatterns;

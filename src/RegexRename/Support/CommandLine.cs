@@ -2,6 +2,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Configuration;
 using RegexRename.Models;
 
 public static class CommandLine
@@ -12,6 +13,9 @@ public static class CommandLine
         ExpectProfileName,
         ExpectFolder,
         ExpectFileSearchPattern,
+        ExpectInputPattern,
+        ExpectOutputPattern,
+        ExpectVariableDeclarations,
     }
 
     public static void ShowHelp()
@@ -23,6 +27,9 @@ public static class CommandLine
         Console.WriteLine("  -s Files  Specify the files to match e.g. '*.pdf', '**/*.pdf'.");
         Console.WriteLine("  -p Name   Specify profile name to apply to the rename operation.");
         Console.WriteLine("  -l[+]     List profiles.");
+        Console.WriteLine("  -i        Input regular expression pattern to match file name to be processed.");
+        Console.WriteLine("  -o        Output format for matched file names.");
+        Console.WriteLine("  -d        Variable declarations, name and type, for the output format.");
         Console.WriteLine("  -w        Displays a message that describes the effect of the command, instead of executing the command.");
         Console.WriteLine("  -x        Displays example configuration settings.");
     }
@@ -35,16 +42,14 @@ public static class CommandLine
 
     public static RegexRenameContext Parse(string[] args, IConfigurationSection configurationSection)
     {
-        var result = new RegexRenameContext();
+        RegexRenameContext result = new();
 
-        var profileConfiguration = configurationSection.Get<ProfileConfiguration>();
-
-        var profileNameFomCommandLine = string.Empty;
-        var profileFromCommandLine = new Profile();
+        string profileNameFomCommandLine = string.Empty;
+        Profile profileFromCommandLine = new();
 
         ParseState state = ParseState.ExpectOption;
 
-        foreach (var arg in args)
+        foreach (string arg in args)
         {
             switch (state)
             {
@@ -66,63 +71,50 @@ public static class CommandLine
                     profileNameFomCommandLine = arg;
                     state = ParseState.ExpectOption;
                     break;
+                case ParseState.ExpectInputPattern:
+                    profileFromCommandLine.InputPattern = arg;
+                    state = ParseState.ExpectOption;
+                    break;
+                case ParseState.ExpectOutputPattern:
+                    profileFromCommandLine.OutputPattern = arg;
+                    state = ParseState.ExpectOption;
+                    break;
+                case ParseState.ExpectVariableDeclarations:
+                    profileFromCommandLine.Variables = ParseVariableDeclarations(arg);
+                    state = ParseState.ExpectOption;
+                    break;
                 default:
                     break;
             }
         }
 
-        return ValidateConfiguration(result, profileConfiguration, profileNameFomCommandLine, profileFromCommandLine);
+        return SetProfile(result, configurationSection, profileNameFomCommandLine, profileFromCommandLine);
     }
 
-    private static RegexRenameContext ValidateConfiguration(RegexRenameContext result, ProfileConfiguration? profileConfiguration, string profileNameFomCommandLine, Profile profileFromCommandLine)
+    // Expected format "name,type;name,type;..."
+    public static IDictionary<string, string>? ParseVariableDeclarations(string? variableDefinitions)
     {
-        if (profileConfiguration == null || profileConfiguration.Items.Any() == false)
+        if (string.IsNullOrWhiteSpace(variableDefinitions))
         {
-            result.ErrorList.Add("At least one profile must be configured.");
-        }
-        else
-        {
-            if (TryGetProfile(profileNameFomCommandLine, profileConfiguration, out var profile))
-            {
-                // Merge settings
-
-                profile.Folder = MergeStringSetting(profile.Folder, profileFromCommandLine.Folder, Directory.GetCurrentDirectory());
-                profile.FileSearchPattern = MergeStringSetting(profile.FileSearchPattern, profileFromCommandLine.FileSearchPattern, Constants.DefaultFileSearchPattern);
-
-                if (string.IsNullOrWhiteSpace(profile.Folder))
-                {
-                    result.ErrorList.Add("The folder must be specified.");
-                }
-                if (string.IsNullOrWhiteSpace(profile.FileSearchPattern))
-                {
-                    result.ErrorList.Add("The file search pattern must be specified.");
-                }
-                if (string.IsNullOrWhiteSpace(profile.InputPattern))
-                {
-                    result.ErrorList.Add("The source file name regular expression must be specified.");
-                }
-                if (string.IsNullOrWhiteSpace(profile.OutputPattern))
-                {
-                    result.ErrorList.Add("The destination file name regular expression must be specified.");
-                }
-
-                if (result.ErrorList.Count == 0)
-                {
-                    profile.Folder = Path.GetFullPath(profile.Folder!);
-                    result.Profile = profile;
-                }
-            }
-            else
-            {
-                result.ErrorList.Add("A valid profile must be specified.");
-            }
-        }
-        if (result.ErrorList.Count > 0)
-        {
-            result.ShowHelp = true;
+            throw new ArgumentException($"'{nameof(variableDefinitions)}' cannot be null or whitespace.", nameof(variableDefinitions));
         }
 
-        return result;
+        Dictionary<string, string> variables = [];
+
+        string[] nameAndTypePairs = variableDefinitions.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (string nameAndTypePair in nameAndTypePairs)
+        {
+            string[] nameAndType = nameAndTypePair.Split(',', 2, StringSplitOptions.TrimEntries);
+
+            variables.Add(nameAndType[0], nameAndType[1]);
+        }
+
+        return variables.Count > 0 ? variables : null;
+    }
+
+    public static bool HasErrors(RegexRenameContext context)
+    {
+        return context.ErrorList.Any();
     }
 
     public static void ShowAnyErrors(IList<string> items)
@@ -130,7 +122,7 @@ public static class CommandLine
         if (items.Any())
         {
             Console.WriteLine();
-            foreach (var item in items)
+            foreach (string item in items)
             {
                 Console.WriteLine(item);
             }
@@ -141,10 +133,31 @@ public static class CommandLine
     {
         foreach (var item in configuration.Items)
         {
-            string output = isLongListing ? item.Value.ToLongString(item.Key) : item.Value.ToShortString(item.Key);
+            string output = isLongListing
+                ? item.Value.ToLongString(item.Key)
+                : Profile.ToShortString(item.Key);
 
             Console.WriteLine(output);
         }
+    }
+
+    private static RegexRenameContext SetProfile(RegexRenameContext result, IConfigurationSection configurationSection, string profileNameFomCommandLine, Profile profileFromCommandLine)
+    {
+        ProfileConfiguration? profileConfiguration = configurationSection.Get<ProfileConfiguration>();
+
+        if (TryGetProfile(profileNameFomCommandLine, profileConfiguration, out var profile) == true)
+        {
+            result.Profile = profile;
+        }
+
+        // Merge settings
+        result.Profile.Folder = GetPrioritisedSetting(result.Profile.Folder, profileFromCommandLine.Folder, Directory.GetCurrentDirectory());
+        result.Profile.FileSearchPattern = GetPrioritisedSetting(result.Profile.FileSearchPattern, profileFromCommandLine.FileSearchPattern, Constants.DefaultFileSearchPattern);
+        result.Profile.InputPattern = GetPrioritisedSetting(result.Profile.InputPattern, profileFromCommandLine.InputPattern, string.Empty);
+        result.Profile.OutputPattern = GetPrioritisedSetting(result.Profile.OutputPattern, profileFromCommandLine.OutputPattern, string.Empty);
+        result.Profile.Variables = GetPrioritisedSetting(result.Profile.Variables, profileFromCommandLine.Variables);
+
+        return result;
     }
 
     private static ParseState ParseOption(string arg, RegexRenameContext context)
@@ -188,25 +201,26 @@ public static class CommandLine
         return result;
     }
 
-    private static bool TryGetProfile(string? profileName, ProfileConfiguration profileConfiguration, [NotNullWhen(true)] out Profile? result)
+    private static bool TryGetProfile(string? profileName, ProfileConfiguration? profileConfiguration, [NotNullWhen(true)] out Profile? result)
     {
-        bool success = false;
         result = default;
+        bool success = false;
 
-        if (string.IsNullOrWhiteSpace(profileName))
+        if (profileConfiguration is not null)
         {
-            profileName = profileConfiguration.DefaultProfile;
-        }
-        if (string.IsNullOrWhiteSpace(profileName) == false && profileConfiguration.Items.TryGetValue(profileName, out result))
-        {
-            success = true;
+            if (string.IsNullOrWhiteSpace(profileName) == false && profileConfiguration.Items.TryGetValue(profileName, out result))
+            {
+                success = true;
+            }
         }
 
         return success;
     }
-    private static string? MergeStringSetting(string? fromCommandLine, string? fromProfile, string defaultValue)
+
+    private static string? GetPrioritisedSetting(string? fromCommandLine, string? fromProfile, string defaultValue)
     {
         string? result = fromCommandLine;
+
         if (string.IsNullOrWhiteSpace(result))
         {
             result = fromProfile;
@@ -215,6 +229,19 @@ public static class CommandLine
         {
             result = defaultValue;
         }
+
+        return result;
+    }
+
+    private static IDictionary<string, string>? GetPrioritisedSetting(IDictionary<string, string>? fromCommandLine, IDictionary<string, string>? fromProfile)
+    {
+        IDictionary<string, string>? result = fromCommandLine;
+
+        if (result is null || result.Count == 0)
+        {
+            result = fromProfile;
+        }
+
         return result;
     }
 }

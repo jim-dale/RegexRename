@@ -8,12 +8,7 @@ public class Profile
     public string? FileSearchPattern { get; set; }
     public string? InputPattern { get; set; }
     public string? OutputPattern { get; set; }
-    public IDictionary<string, string> VariableTypes { get; } = new Dictionary<string, string>();
-
-    public string ToShortString(string name)
-    {
-        return StringifyProperty(name);
-    }
+    public IDictionary<string, string>? Variables { get; set; }
 
     public string ToLongString(string name)
     {
@@ -24,6 +19,11 @@ public class Profile
         string outputPattern = StringifyProperty(this.OutputPattern);
 
         return $"{name}, {folder}, {fileSearchPattern}, {inputPattern}, {outputPattern}";
+    }
+
+    public static string ToShortString(string name)
+    {
+        return StringifyProperty(name);
     }
 
     private static string StringifyProperty(string? value)

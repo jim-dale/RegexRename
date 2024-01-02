@@ -8,12 +8,12 @@ using RegexRename.Support;
 public sealed class FileNameProcessorSteps
 {
     private FileNameProcessor? sut;
-    private readonly List<string> output = new();
+    private readonly List<string> output = [];
 
     [Given(@"I have a file name processor with the following parameters:")]
     public void GivenIHaveAFileNameProcessorWithTheFollowingParameters(Table table)
     {
-        ArgumentNullException.ThrowIfNull(table, nameof(table));
+        ArgumentNullException.ThrowIfNull(table);
 
         using (var scope = new AssertionScope())
         {
@@ -23,28 +23,22 @@ public sealed class FileNameProcessorSteps
 
         var inputPattern = table.Rows[0][0];
         var outputPattern = table.Rows[0][1];
-        var variables = table.Rows[0][2];
+        var variableDefinitions = table.Rows[0][2];
 
         inputPattern.Should().NotBeNullOrWhiteSpace();
         outputPattern.Should().NotBeNullOrWhiteSpace();
-        variables.Should().NotBeNullOrWhiteSpace();
+        variableDefinitions.Should().NotBeNullOrWhiteSpace();
 
-        var variableTypes = new Dictionary<string, string>();
-        var variableDefinitions = variables.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var variableDefinition in variableDefinitions)
-        {
-            var nameAndType = variableDefinition.Split(',', 2, StringSplitOptions.TrimEntries);
+        var variables = CommandLine.ParseVariableDeclarations(variableDefinitions);
+        variables.Should().NotBeNull();
 
-            variableTypes.Add(nameAndType[0], nameAndType[1]);
-        }
-
-        this.sut = new FileNameProcessor(inputPattern, outputPattern, variableTypes);
+        this.sut = new FileNameProcessor(inputPattern, outputPattern, variables!);
     }
 
     [When(@"I transform the following file names:")]
     public void WhenITransformTheFollowingFileNames(Table table)
     {
-        ArgumentNullException.ThrowIfNull(table, nameof(table));
+        ArgumentNullException.ThrowIfNull(table);
 
         this.sut.Should().NotBeNull();
         using (var scope = new AssertionScope())
@@ -64,7 +58,7 @@ public sealed class FileNameProcessorSteps
     [Then(@"I expect the following output:")]
     public void ThenIExpectTheFollowingOutput(Table table)
     {
-        ArgumentNullException.ThrowIfNull(table, nameof(table));
+        ArgumentNullException.ThrowIfNull(table);
 
         using (var scope = new AssertionScope())
         {

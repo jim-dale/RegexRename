@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -61,6 +62,8 @@ public static partial class StringSubstitutionExtension
     /// Replaces the format item in a specified string with the string representation of a corresponding object in a specified dictionary.
     /// A specified parameter supplies culture-specific formatting information.
     /// </summary>
+    [SuppressMessage("Performance", "CA1854:Prefer the 'IDictionary.TryGetValue(TKey, out TValue)' method", Justification = "External code.")]
+    [SuppressMessage("Style", "IDE0305:Simplify collection initialization", Justification = "External code.")]
     public static string Subtitute(this string template, IFormatProvider formatProvider, IReadOnlyDictionary<string, object> dictionary)
     {
         var map = new Dictionary<string, int>();
